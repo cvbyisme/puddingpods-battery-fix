@@ -6,6 +6,11 @@ name: build-patched-apk
 on:
   push:
     branches: [main]
+    paths:
+      - "base/**"
+      - "tools/**"
+      - "keystore/**"
+      - ".github/workflows/build.yml"
   workflow_dispatch:
 
 env:
