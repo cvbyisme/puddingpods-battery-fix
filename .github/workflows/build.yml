@@ -11,7 +11,6 @@ on:
 env:
   BASE_APK: base/PuddingPods-3.47-stock.apk
   BASE_SHA256: ebe7c11ab40e988bb24ae765f736e1fdd4f9b929e8cbf4efc64d57d83eeb4ae0
-  BUILD_TOOLS: "34.0.0"
 
 jobs:
   build:
@@ -24,10 +23,17 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-
-      - name: Install Android build-tools
-        run: sdkmanager --install "build-tools;${BUILD_TOOLS}" >/dev/null
+      # GitHub 的 ubuntu runner 预装 Android SDK，直接用它的 build-tools。
+      # （不用 android-actions/setup-android：它会去装已废弃的 "tools" 包而报错）
+      - name: Locate Android build-tools
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          BT="$(ls -d "$SDK"/build-tools/*/ | sort -V | tail -1)"
+          echo "build-tools: $BT"
+          ls "$BT" | head
+          echo "ZIPALIGN=${BT}zipalign" >> "$GITHUB_ENV"
+          echo "APKSIGNER=${BT}apksigner" >> "$GITHUB_ENV"
 
       - name: Verify pinned base APK
         run: |
@@ -43,8 +49,6 @@ jobs:
       - name: Build patched APK
         env:
           BASE_APK: ${{ github.workspace }}/base/PuddingPods-3.47-stock.apk
-          ZIPALIGN: ${{ env.ANDROID_HOME }}/build-tools/${{ env.BUILD_TOOLS }}/zipalign
-          APKSIGNER: ${{ env.ANDROID_HOME }}/build-tools/${{ env.BUILD_TOOLS }}/apksigner
         run: bash tools/build.sh
 
       - name: Show result
