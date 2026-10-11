@@ -47,7 +47,7 @@ echo "== 4/6 smali assemble (api 35 -> dex 039)"
 java -jar "$SMALI_JAR" a -a 35 "$WORK/smali" -o "$WORK/classes.dex"
 head -c 8 "$WORK/classes.dex" | grep -q 'dex' || { echo "assembled dex looks wrong" >&2; exit 1; }
 # sanity: the fix must be present in the assembled source
-grep -q 'add-int/lit8 v2, v2, 0x4' "$WORK/smali/lc1.smali" || { echo "patch marker lost" >&2; exit 1; }
+grep -rq 'add-int/lit8 v2, v2, 0x4' "$WORK/smali" || { echo "patch marker lost" >&2; exit 1; }
 
 echo "== 5/6 repack apk (only classes.dex changes)"
 cp "$BASE_APK" "$WORK/patched.apk"

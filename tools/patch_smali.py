@@ -3,7 +3,9 @@
 
 Bug
 ---
-`Llc1;->b([B)` (the GAIA frame slicer used on every RFCOMM read) treats the
+`Llc1;->b([B)` (the GAIA frame slicer used on every RFCOMM read; the class name
+differs per build — Coolapk 3.47 uses `Llc1;`, the GitHub release build `Lmc1;`,
+so this script locates it by method signature + code fingerprint) treats the
 device's length field as the *whole* frame body:
 
     prefix "FF 04 <len>"  ->  slice = <len> bytes  ->  consumed = 4 + <len>
@@ -82,11 +84,30 @@ def patch(path: Path) -> bool:
     return True
 
 
+def locate(root: Path) -> Path:
+    """Find the one class holding the framer.
+
+    The class name depends on the build (Coolapk 3.47 ships `Llc1;`, the GitHub release
+    build ships `Lmc1;`), so match on the method signature plus the code fingerprint
+    instead of a hard-coded path.
+    """
+    hits = []
+    for path in sorted(root.rglob("*.smali")):
+        text = path.read_text(errors="replace")
+        if METHOD_HEADER in text and all(n in text for n in NEEDLES):
+            hits.append(path)
+    if not hits:
+        raise SystemExit(f"{root}: no framer class (method {METHOD_HEADER} + fingerprint) found")
+    if len(hits) > 1:
+        raise SystemExit(f"{root}: {len(hits)} framer candidates, refusing to guess: "
+                         + ", ".join(str(p) for p in hits))
+    return hits[0]
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         raise SystemExit(f"usage: {sys.argv[0]} <smali-output-dir>")
     root = Path(sys.argv[1])
-    target = root / "lc1.smali"
-    if not target.is_file():
-        raise SystemExit(f"{target} not found")
-    patch(target)
+    if not root.is_dir():
+        raise SystemExit(f"{root} is not a directory")
+    patch(locate(root))
